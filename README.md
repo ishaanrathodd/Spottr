@@ -4,16 +4,16 @@ A native macOS menu bar app that watches a folder for new files and copies their
 
 ## Purpose
 
-This app is designed to help you quickly collect file paths for use with AI agents (like GLM 4.7) that require file paths instead of direct file attachments for image analysis.
+This app is designed to help you quickly collect file paths. I made it for my use with AI agents (like GLM 4.7) that require file paths instead of direct file attachments for image analysis.
 
 ## Features
 
-- 🍎 **Native macOS UI** - Built with SwiftUI for authentic macOS experience
-- 🎯 **Global Keyboard Shortcut** - Toggle watching from anywhere (default: ⌃⇧W)
-- 📂 **Folder Watching** - Monitor any folder for new files using FSEvents
-- 📋 **Clipboard Integration** - Automatically copies all collected paths to clipboard when stopping
-- ⚙️ **Settings Panel** - Native macOS settings for configuring shortcut and folder
-- 🔒 **Menu Bar App** - Runs in menu bar, no dock icon
+- **Native macOS UI** - Built with SwiftUI for authentic macOS experience
+- **Global Keyboard Shortcut** - Toggle watching from anywhere (default: ⌃⇧W)
+- **Folder Watching** - Monitor any folder for new files using FSEvents
+- **Clipboard Integration** - Automatically copies all collected paths to clipboard when stopping
+- **Settings Panel** - Native macOS settings for configuring shortcut and folder
+- **Menu Bar App** - Runs in menu bar, no dock icon
 
 ## How It Works
 
@@ -54,23 +54,6 @@ When multiple files are collected, paths are copied as a comma-separated list:
 
 3. Press ⌘B to build or ⌘R to build and run
 
-### First Run
-On first run, macOS will ask for **Accessibility permissions** in System Settings > Privacy & Security > Accessibility. This is required for global keyboard shortcuts to work.
-
-## Project Structure
-
-```
-FolderWatcher/
-├── FolderWatcherApp.swift   # Main app entry point & AppDelegate
-├── AppState.swift           # Observable app state management
-├── FileMonitor.swift        # FSEvents-based folder watcher
-├── SettingsManager.swift    # UserDefaults settings persistence
-├── MenuBarView.swift        # Menu bar dropdown UI
-├── SettingsView.swift       # Settings window UI
-├── Info.plist              # App configuration
-└── FolderWatcher.entitlements # App entitlements
-```
-
 ## Technical Details
 
 - **File System Monitoring**: Uses `FSEvents` API for efficient, low-overhead folder monitoring
@@ -84,7 +67,3 @@ This app is perfect for workflows where you need to:
 - Quickly collect multiple image paths for AI analysis
 - Work with AI agents that need file system paths (like GLM 4.7 with Vision MCP Server)
 - Batch collect file paths for any purpose
-
-## License
-
-MIT
