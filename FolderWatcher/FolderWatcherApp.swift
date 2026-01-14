@@ -28,8 +28,8 @@ struct FolderWatcherApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Register global hotkey using Carbon API
-        setupHotKey()
+        // Register global hotkeys using Carbon API
+        setupHotKeys()
         
         // Hide dock icon - menu bar app only
         NSApp.setActivationPolicy(.accessory)
@@ -39,21 +39,49 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationWillTerminate(_ notification: Notification) {
-        GlobalHotKey.shared.unregister()
+        GlobalHotKey.shared.unregisterAll()
     }
     
-    func setupHotKey() {
+    func setupHotKeys() {
         let settings = SettingsManager.shared
-        let keyCode = settings.shortcutKeyCode
-        let modifiers = settings.shortcutModifiers
         
-        GlobalHotKey.shared.register(keyCode: keyCode, modifiers: modifiers) {
-            AppState.shared.toggleWatching()
+        // If shortcuts are the same, register one hotkey that toggles
+        if settings.shortcutsAreSame {
+            GlobalHotKey.shared.register(
+                id: .startWatching,
+                keyCode: settings.startShortcutKeyCode,
+                modifiers: settings.startShortcutModifiers
+            ) {
+                AppState.shared.toggleWatching()
+            }
+            // Unregister the stop hotkey if it was previously different
+            GlobalHotKey.shared.unregister(id: .stopWatching)
+        } else {
+            // Register separate start and stop hotkeys
+            GlobalHotKey.shared.register(
+                id: .startWatching,
+                keyCode: settings.startShortcutKeyCode,
+                modifiers: settings.startShortcutModifiers
+            ) {
+                if !AppState.shared.isWatching {
+                    AppState.shared.startWatching()
+                }
+            }
+            
+            GlobalHotKey.shared.register(
+                id: .stopWatching,
+                keyCode: settings.stopShortcutKeyCode,
+                modifiers: settings.stopShortcutModifiers
+            ) {
+                if AppState.shared.isWatching {
+                    AppState.shared.stopWatching()
+                }
+            }
         }
     }
     
-    func updateHotKey() {
-        setupHotKey()
+    func updateHotKeys() {
+        setupHotKeys()
     }
     
     @objc func openSettings() {

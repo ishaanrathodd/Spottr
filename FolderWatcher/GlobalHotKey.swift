@@ -1,6 +1,15 @@
 import Foundation
 import Carbon
 import AppKit
+import os.log
+
+private let logger = Logger(subsystem: "com.ishaanrathod.FolderWatcher", category: "GlobalHotKey")
+
+/// Enum to identify different hotkeys
+enum HotKeyID: UInt32 {
+    case startWatching = 1
+    case stopWatching = 2
+}
 
 /// A class that manages global hotkey registration using Carbon APIs
 /// This is the proper way to register system-wide hotkeys that work from any application
@@ -16,9 +25,13 @@ final class GlobalHotKey {
     
     // MARK: - Properties
     
-    private var hotKeyRef: EventHotKeyRef?
+    private struct HotKeyInfo {
+        var ref: EventHotKeyRef?
+        var handler: Handler
+    }
+    
+    private var hotKeys: [UInt32: HotKeyInfo] = [:]
     private var eventHandler: EventHandlerRef?
-    private var keyDownHandler: Handler?
     
     private static var carbonEventSignature: UInt32 = {
         // FourCharCode for "FWHk" (FolderWatcher HotKey)
@@ -30,27 +43,32 @@ final class GlobalHotKey {
         return result
     }()
     
-    private static let hotKeyID: UInt32 = 1
-    
     // MARK: - Initialization
     
     private init() {}
     
     // MARK: - Public Methods
     
-    /// Register a global hotkey with the given key code and modifiers
+    /// Register a global hotkey with the given key code, modifiers, and ID
     /// - Parameters:
+    ///   - id: The hotkey identifier
     ///   - keyCode: The virtual key code (same as NSEvent.keyCode)
     ///   - modifiers: The modifier flags (NSEvent.ModifierFlags)
     ///   - handler: The closure to call when the hotkey is pressed
-    func register(keyCode: UInt16, modifiers: NSEvent.ModifierFlags, handler: @escaping Handler) {
-        // Unregister any existing hotkey first
-        unregister()
-        
-        self.keyDownHandler = handler
+    func register(id: HotKeyID, keyCode: UInt16, modifiers: NSEvent.ModifierFlags, handler: @escaping Handler) {
+        // Unregister any existing hotkey with this ID first
+        unregister(id: id)
         
         // Convert NSEvent.ModifierFlags to Carbon modifiers
-        let carbonModifiers = carbonModifiers(from: modifiers)
+        let carbonMods = carbonModifiers(from: modifiers)
+        
+        // Debug logging
+        var modNames: [String] = []
+        if modifiers.contains(.control) { modNames.append("Control") }
+        if modifiers.contains(.option) { modNames.append("Option") }
+        if modifiers.contains(.shift) { modNames.append("Shift") }
+        if modifiers.contains(.command) { modNames.append("Command") }
+        logger.info("Attempting to register \(String(describing: id)) - keyCode: \(keyCode), modifiers: \(modNames.joined(separator: "+")) (carbon: \(carbonMods))")
         
         // Install the event handler if not already installed
         if eventHandler == nil {
@@ -59,32 +77,48 @@ final class GlobalHotKey {
         
         // Register the hotkey
         var hotKeyRef: EventHotKeyRef?
-        let hotKeyID = EventHotKeyID(signature: GlobalHotKey.carbonEventSignature, id: GlobalHotKey.hotKeyID)
+        let hotKeyEventID = EventHotKeyID(signature: GlobalHotKey.carbonEventSignature, id: id.rawValue)
         
         let status = RegisterEventHotKey(
             UInt32(keyCode),
-            carbonModifiers,
-            hotKeyID,
+            carbonMods,
+            hotKeyEventID,
             GetEventDispatcherTarget(),
             0,
             &hotKeyRef
         )
         
         if status == noErr {
-            self.hotKeyRef = hotKeyRef
-            print("GlobalHotKey: Successfully registered hotkey (keyCode: \(keyCode), modifiers: \(carbonModifiers))")
+            hotKeys[id.rawValue] = HotKeyInfo(ref: hotKeyRef, handler: handler)
+            logger.info("Successfully registered \(String(describing: id)) (keyCode: \(keyCode), carbonModifiers: \(carbonMods))")
         } else {
-            print("GlobalHotKey: Failed to register hotkey, error: \(status)")
+            logger.error("Failed to register \(String(describing: id)), error: \(status)")
         }
     }
     
-    /// Unregister the current hotkey
-    func unregister() {
-        if let hotKeyRef = hotKeyRef {
-            UnregisterEventHotKey(hotKeyRef)
-            self.hotKeyRef = nil
-            print("GlobalHotKey: Unregistered hotkey")
+    /// Legacy register method for backward compatibility (uses startWatching ID)
+    func register(keyCode: UInt16, modifiers: NSEvent.ModifierFlags, handler: @escaping Handler) {
+        register(id: .startWatching, keyCode: keyCode, modifiers: modifiers, handler: handler)
+    }
+    
+    /// Unregister a specific hotkey by ID
+    func unregister(id: HotKeyID) {
+        if let info = hotKeys[id.rawValue], let ref = info.ref {
+            UnregisterEventHotKey(ref)
+            hotKeys.removeValue(forKey: id.rawValue)
+            logger.info("Unregistered \(String(describing: id))")
         }
+    }
+    
+    /// Unregister all hotkeys
+    func unregisterAll() {
+        for (id, info) in hotKeys {
+            if let ref = info.ref {
+                UnregisterEventHotKey(ref)
+            }
+            logger.info("Unregistered hotkey ID \(id)")
+        }
+        hotKeys.removeAll()
     }
     
     // MARK: - Private Methods
@@ -114,13 +148,15 @@ final class GlobalHotKey {
         )
         
         if status == noErr {
-            print("GlobalHotKey: Event handler installed successfully")
+            logger.info("Event handler installed successfully")
         } else {
-            print("GlobalHotKey: Failed to install event handler, error: \(status)")
+            logger.error("Failed to install event handler, error: \(status)")
         }
     }
     
     private func handleEvent(_ event: EventRef) -> OSStatus {
+        logger.info("Event received!")
+        
         // Get the hotkey ID from the event
         var hotKeyID = EventHotKeyID()
         let status = GetEventParameter(
@@ -134,24 +170,28 @@ final class GlobalHotKey {
         )
         
         guard status == noErr else {
+            logger.error("Failed to get event parameter, status: \(status)")
             return status
         }
         
-        // Verify this is our hotkey
-        guard hotKeyID.signature == GlobalHotKey.carbonEventSignature,
-              hotKeyID.id == GlobalHotKey.hotKeyID else {
+        // Verify this is our hotkey signature
+        guard hotKeyID.signature == GlobalHotKey.carbonEventSignature else {
+            logger.info("Event is not for our app")
+            return OSStatus(eventNotHandledErr)
+        }
+        
+        // Find the handler for this hotkey ID
+        guard let info = hotKeys[hotKeyID.id] else {
+            logger.warning("No handler registered for hotkey ID \(hotKeyID.id)")
             return OSStatus(eventNotHandledErr)
         }
         
         // Call the handler on the main thread
-        if let handler = keyDownHandler {
-            DispatchQueue.main.async {
-                handler()
-            }
-            return noErr
+        logger.info("Calling handler for hotkey ID \(hotKeyID.id)")
+        DispatchQueue.main.async {
+            info.handler()
         }
-        
-        return OSStatus(eventNotHandledErr)
+        return noErr
     }
     
     /// Convert NSEvent.ModifierFlags to Carbon modifier flags
@@ -175,7 +215,7 @@ final class GlobalHotKey {
     }
     
     deinit {
-        unregister()
+        unregisterAll()
         if let eventHandler = eventHandler {
             RemoveEventHandler(eventHandler)
         }

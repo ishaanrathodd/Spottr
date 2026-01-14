@@ -143,7 +143,7 @@ struct MenuBarView: View {
             
             // Footer
             HStack {
-                Text("Shortcut: \(SettingsManager.shared.shortcutDisplayString)")
+                Text("Shortcut: \(appState.shortcutDisplayString)")
                     .font(.caption2)
                     .foregroundColor(.secondary)
                 

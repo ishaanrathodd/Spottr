@@ -8,10 +8,22 @@ class SettingsManager {
     
     private enum Keys {
         static let watchFolder = "watchFolder"
-        static let shortcutModifiers = "shortcutModifiers"
-        static let shortcutKeyCode = "shortcutKeyCode"
         static let singleFileTemplate = "singleFileTemplate"
         static let multipleFilesTemplate = "multipleFilesTemplate"
+        
+        // Start shortcut modifier keys
+        static let startModifierControl = "startShortcutModifierControl"
+        static let startModifierOption = "startShortcutModifierOption"
+        static let startModifierShift = "startShortcutModifierShift"
+        static let startModifierCommand = "startShortcutModifierCommand"
+        static let startKeyCode = "startShortcutKeyCode"
+        
+        // Stop shortcut modifier keys
+        static let stopModifierControl = "stopShortcutModifierControl"
+        static let stopModifierOption = "stopShortcutModifierOption"
+        static let stopModifierShift = "stopShortcutModifierShift"
+        static let stopModifierCommand = "stopShortcutModifierCommand"
+        static let stopKeyCode = "stopShortcutKeyCode"
     }
     
     // Default templates - {path} is the placeholder for file paths
@@ -23,32 +35,94 @@ class SettingsManager {
         set { defaults.set(newValue, forKey: Keys.watchFolder) }
     }
     
-    var shortcutModifiers: NSEvent.ModifierFlags {
+    // MARK: - Start Shortcut
+    
+    var startShortcutModifiers: NSEvent.ModifierFlags {
         get {
-            let rawValue = defaults.integer(forKey: Keys.shortcutModifiers)
-            if rawValue == 0 {
-                // Default: Control + Shift
+            let hasAnyModifier = defaults.object(forKey: Keys.startModifierControl) != nil ||
+                                 defaults.object(forKey: Keys.startModifierOption) != nil ||
+                                 defaults.object(forKey: Keys.startModifierShift) != nil ||
+                                 defaults.object(forKey: Keys.startModifierCommand) != nil
+            
+            if !hasAnyModifier {
                 return [.control, .shift]
             }
-            return NSEvent.ModifierFlags(rawValue: UInt(rawValue))
+            
+            var mods: NSEvent.ModifierFlags = []
+            if defaults.bool(forKey: Keys.startModifierControl) { mods.insert(.control) }
+            if defaults.bool(forKey: Keys.startModifierOption) { mods.insert(.option) }
+            if defaults.bool(forKey: Keys.startModifierShift) { mods.insert(.shift) }
+            if defaults.bool(forKey: Keys.startModifierCommand) { mods.insert(.command) }
+            
+            return mods
         }
         set {
-            defaults.set(Int(newValue.rawValue), forKey: Keys.shortcutModifiers)
+            defaults.set(newValue.contains(.control), forKey: Keys.startModifierControl)
+            defaults.set(newValue.contains(.option), forKey: Keys.startModifierOption)
+            defaults.set(newValue.contains(.shift), forKey: Keys.startModifierShift)
+            defaults.set(newValue.contains(.command), forKey: Keys.startModifierCommand)
         }
     }
     
-    var shortcutKeyCode: UInt16 {
+    var startShortcutKeyCode: UInt16 {
         get {
-            let value = defaults.integer(forKey: Keys.shortcutKeyCode)
-            if value == 0 {
-                // Default: W key
-                return 13 // keyCode for 'W'
+            let hasKey = defaults.object(forKey: Keys.startKeyCode) != nil
+            if !hasKey {
+                return 13 // Default: W key
             }
-            return UInt16(value)
+            return UInt16(defaults.integer(forKey: Keys.startKeyCode))
         }
         set {
-            defaults.set(Int(newValue), forKey: Keys.shortcutKeyCode)
+            defaults.set(Int(newValue), forKey: Keys.startKeyCode)
         }
+    }
+    
+    // MARK: - Stop Shortcut
+    
+    var stopShortcutModifiers: NSEvent.ModifierFlags {
+        get {
+            let hasAnyModifier = defaults.object(forKey: Keys.stopModifierControl) != nil ||
+                                 defaults.object(forKey: Keys.stopModifierOption) != nil ||
+                                 defaults.object(forKey: Keys.stopModifierShift) != nil ||
+                                 defaults.object(forKey: Keys.stopModifierCommand) != nil
+            
+            if !hasAnyModifier {
+                return [.control, .shift]
+            }
+            
+            var mods: NSEvent.ModifierFlags = []
+            if defaults.bool(forKey: Keys.stopModifierControl) { mods.insert(.control) }
+            if defaults.bool(forKey: Keys.stopModifierOption) { mods.insert(.option) }
+            if defaults.bool(forKey: Keys.stopModifierShift) { mods.insert(.shift) }
+            if defaults.bool(forKey: Keys.stopModifierCommand) { mods.insert(.command) }
+            
+            return mods
+        }
+        set {
+            defaults.set(newValue.contains(.control), forKey: Keys.stopModifierControl)
+            defaults.set(newValue.contains(.option), forKey: Keys.stopModifierOption)
+            defaults.set(newValue.contains(.shift), forKey: Keys.stopModifierShift)
+            defaults.set(newValue.contains(.command), forKey: Keys.stopModifierCommand)
+        }
+    }
+    
+    var stopShortcutKeyCode: UInt16 {
+        get {
+            let hasKey = defaults.object(forKey: Keys.stopKeyCode) != nil
+            if !hasKey {
+                return 13 // Default: W key
+            }
+            return UInt16(defaults.integer(forKey: Keys.stopKeyCode))
+        }
+        set {
+            defaults.set(Int(newValue), forKey: Keys.stopKeyCode)
+        }
+    }
+    
+    // Check if both shortcuts are the same (toggle mode)
+    var shortcutsAreSame: Bool {
+        return startShortcutModifiers == stopShortcutModifiers && 
+               startShortcutKeyCode == stopShortcutKeyCode
     }
     
     // Template for single file path
@@ -74,17 +148,33 @@ class SettingsManager {
         return template.replacingOccurrences(of: "{path}", with: pathsString)
     }
     
-    // Helper to get human-readable shortcut string
+    // Helper to get human-readable shortcut strings
+    var startShortcutDisplayString: String {
+        return formatShortcutDisplay(modifiers: startShortcutModifiers, keyCode: startShortcutKeyCode)
+    }
+    
+    var stopShortcutDisplayString: String {
+        return formatShortcutDisplay(modifiers: stopShortcutModifiers, keyCode: stopShortcutKeyCode)
+    }
+    
+    // Combined display for menu bar (shows both if different)
     var shortcutDisplayString: String {
+        if shortcutsAreSame {
+            return startShortcutDisplayString
+        } else {
+            return "\(startShortcutDisplayString) / \(stopShortcutDisplayString)"
+        }
+    }
+    
+    private func formatShortcutDisplay(modifiers: NSEvent.ModifierFlags, keyCode: UInt16) -> String {
         var parts: [String] = []
         
-        let mods = shortcutModifiers
-        if mods.contains(.control) { parts.append("⌃") }
-        if mods.contains(.option) { parts.append("⌥") }
-        if mods.contains(.shift) { parts.append("⇧") }
-        if mods.contains(.command) { parts.append("⌘") }
+        if modifiers.contains(.control) { parts.append("⌃") }
+        if modifiers.contains(.option) { parts.append("⌥") }
+        if modifiers.contains(.shift) { parts.append("⇧") }
+        if modifiers.contains(.command) { parts.append("⌘") }
         
-        parts.append(keyCodeToString(shortcutKeyCode))
+        parts.append(keyCodeToString(keyCode))
         
         return parts.joined()
     }

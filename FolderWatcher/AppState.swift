@@ -8,6 +8,7 @@ class AppState: ObservableObject {
     @Published var collectedPaths: [String] = []
     @Published var watchFolder: String = ""
     @Published var statusMessage: String = "Ready"
+    @Published var shortcutDisplayString: String = ""
     
     private var fileMonitor: FileMonitor?
     private var cancellables = Set<AnyCancellable>()
@@ -15,6 +16,12 @@ class AppState: ObservableObject {
     private init() {
         // Load saved watch folder
         watchFolder = SettingsManager.shared.watchFolder
+        // Load saved shortcut display string
+        shortcutDisplayString = SettingsManager.shared.shortcutDisplayString
+    }
+    
+    func updateShortcutDisplay() {
+        shortcutDisplayString = SettingsManager.shared.shortcutDisplayString
     }
     
     func toggleWatching() {

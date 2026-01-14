@@ -3,9 +3,17 @@ import Carbon.HIToolbox
 
 struct SettingsView: View {
     @EnvironmentObject var appState: AppState
-    @State private var isRecordingShortcut = false
-    @State private var tempModifiers: NSEvent.ModifierFlags = []
-    @State private var tempKeyCode: UInt16 = 0
+    
+    // Start shortcut state
+    @State private var isRecordingStartShortcut = false
+    @State private var startModifiers: NSEvent.ModifierFlags = []
+    @State private var startKeyCode: UInt16 = 0
+    
+    // Stop shortcut state
+    @State private var isRecordingStopShortcut = false
+    @State private var stopModifiers: NSEvent.ModifierFlags = []
+    @State private var stopKeyCode: UInt16 = 0
+    
     @State private var singleFileTemplate: String = ""
     @State private var multipleFilesTemplate: String = ""
     
@@ -38,22 +46,38 @@ struct SettingsView: View {
             
             Section {
                 HStack {
-                    Label("Toggle Shortcut", systemImage: "keyboard")
+                    Label("Start Watching", systemImage: "play.circle")
                     
                     Spacer()
                     
                     ShortcutRecorderView(
-                        isRecording: $isRecordingShortcut,
-                        modifiers: $tempModifiers,
-                        keyCode: $tempKeyCode
+                        shortcutType: .start,
+                        isRecording: $isRecordingStartShortcut,
+                        modifiers: $startModifiers,
+                        keyCode: $startKeyCode,
+                        otherRecording: $isRecordingStopShortcut
                     )
                 }
                 
-                Text("This shortcut will start/stop folder watching from anywhere in macOS.")
+                HStack {
+                    Label("Stop Watching", systemImage: "stop.circle")
+                    
+                    Spacer()
+                    
+                    ShortcutRecorderView(
+                        shortcutType: .stop,
+                        isRecording: $isRecordingStopShortcut,
+                        modifiers: $stopModifiers,
+                        keyCode: $stopKeyCode,
+                        otherRecording: $isRecordingStartShortcut
+                    )
+                }
+                
+                Text("If both shortcuts are the same, it acts as a toggle. Set different shortcuts to have separate start/stop keys.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             } header: {
-                Text("Keyboard Shortcut")
+                Text("Keyboard Shortcuts")
             }
             
             Section {
@@ -104,10 +128,15 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 500, height: 480)
+        .frame(width: 500, height: 520)
         .onAppear {
-            tempModifiers = SettingsManager.shared.shortcutModifiers
-            tempKeyCode = SettingsManager.shared.shortcutKeyCode
+            // Load start shortcut
+            startModifiers = SettingsManager.shared.startShortcutModifiers
+            startKeyCode = SettingsManager.shared.startShortcutKeyCode
+            // Load stop shortcut
+            stopModifiers = SettingsManager.shared.stopShortcutModifiers
+            stopKeyCode = SettingsManager.shared.stopShortcutKeyCode
+            // Load templates
             singleFileTemplate = SettingsManager.shared.singleFileTemplate
             multipleFilesTemplate = SettingsManager.shared.multipleFilesTemplate
         }
@@ -122,10 +151,17 @@ struct SettingsView: View {
     }
 }
 
+enum ShortcutType {
+    case start
+    case stop
+}
+
 struct ShortcutRecorderView: View {
+    let shortcutType: ShortcutType
     @Binding var isRecording: Bool
     @Binding var modifiers: NSEvent.ModifierFlags
     @Binding var keyCode: UInt16
+    @Binding var otherRecording: Bool  // To stop the other recorder if active
     
     @State private var localEventMonitor: Any?
     
@@ -134,6 +170,10 @@ struct ShortcutRecorderView: View {
             if isRecording {
                 stopRecording()
             } else {
+                // Stop the other recorder if it's active
+                if otherRecording {
+                    otherRecording = false
+                }
                 startRecording()
             }
         }) {
@@ -176,42 +216,131 @@ struct ShortcutRecorderView: View {
     private func startRecording() {
         isRecording = true
         
+        // Temporarily unregister all hotkeys so they don't interfere with recording
+        // (allows setting the same shortcut for both start and stop)
+        GlobalHotKey.shared.unregisterAll()
+        
         localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             // Check for Escape to cancel
             if event.keyCode == 53 { // Escape
-                self.stopRecording()
+                self.stopRecording(cancelled: true)
                 return nil
             }
             
+            // Extract only the modifiers we care about (not numericPad, function, etc.)
+            var cleanMods: NSEvent.ModifierFlags = []
+            if event.modifierFlags.contains(.control) { cleanMods.insert(.control) }
+            if event.modifierFlags.contains(.option) { cleanMods.insert(.option) }
+            if event.modifierFlags.contains(.shift) { cleanMods.insert(.shift) }
+            if event.modifierFlags.contains(.command) { cleanMods.insert(.command) }
+            
             // Need at least one modifier
-            let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            if mods.isEmpty {
+            if cleanMods.isEmpty {
                 return event
             }
             
-            // Record the shortcut
-            self.modifiers = mods
+            // Record the shortcut with clean modifiers only
+            self.modifiers = cleanMods
             self.keyCode = event.keyCode
             
-            // Save to settings
-            SettingsManager.shared.shortcutModifiers = mods
-            SettingsManager.shared.shortcutKeyCode = event.keyCode
-            
-            // Update the app's hotkey
-            if let appDelegate = NSApp.delegate as? AppDelegate {
-                appDelegate.updateHotKey()
+            // Save to settings based on shortcut type
+            switch self.shortcutType {
+            case .start:
+                SettingsManager.shared.startShortcutModifiers = cleanMods
+                SettingsManager.shared.startShortcutKeyCode = event.keyCode
+            case .stop:
+                SettingsManager.shared.stopShortcutModifiers = cleanMods
+                SettingsManager.shared.stopShortcutKeyCode = event.keyCode
             }
+            
+            // Re-register ALL hotkeys directly (AppDelegate cast can fail in Settings window context)
+            let settings = SettingsManager.shared
+            
+            if settings.shortcutsAreSame {
+                // Same shortcut = toggle mode
+                GlobalHotKey.shared.register(
+                    id: .startWatching,
+                    keyCode: settings.startShortcutKeyCode,
+                    modifiers: settings.startShortcutModifiers
+                ) {
+                    AppState.shared.toggleWatching()
+                }
+                GlobalHotKey.shared.unregister(id: .stopWatching)
+            } else {
+                // Different shortcuts = separate start/stop
+                GlobalHotKey.shared.register(
+                    id: .startWatching,
+                    keyCode: settings.startShortcutKeyCode,
+                    modifiers: settings.startShortcutModifiers
+                ) {
+                    if !AppState.shared.isWatching {
+                        AppState.shared.startWatching()
+                    }
+                }
+                
+                GlobalHotKey.shared.register(
+                    id: .stopWatching,
+                    keyCode: settings.stopShortcutKeyCode,
+                    modifiers: settings.stopShortcutModifiers
+                ) {
+                    if AppState.shared.isWatching {
+                        AppState.shared.stopWatching()
+                    }
+                }
+            }
+            
+            // Update the menu bar display
+            AppState.shared.updateShortcutDisplay()
             
             self.stopRecording()
             return nil
         }
     }
     
-    private func stopRecording() {
+    private func stopRecording(cancelled: Bool = false) {
         isRecording = false
         if let monitor = localEventMonitor {
             NSEvent.removeMonitor(monitor)
             localEventMonitor = nil
+        }
+        
+        // If cancelled, re-register the existing hotkeys
+        if cancelled {
+            reregisterHotkeys()
+        }
+    }
+    
+    private func reregisterHotkeys() {
+        let settings = SettingsManager.shared
+        
+        if settings.shortcutsAreSame {
+            GlobalHotKey.shared.register(
+                id: .startWatching,
+                keyCode: settings.startShortcutKeyCode,
+                modifiers: settings.startShortcutModifiers
+            ) {
+                AppState.shared.toggleWatching()
+            }
+        } else {
+            GlobalHotKey.shared.register(
+                id: .startWatching,
+                keyCode: settings.startShortcutKeyCode,
+                modifiers: settings.startShortcutModifiers
+            ) {
+                if !AppState.shared.isWatching {
+                    AppState.shared.startWatching()
+                }
+            }
+            
+            GlobalHotKey.shared.register(
+                id: .stopWatching,
+                keyCode: settings.stopShortcutKeyCode,
+                modifiers: settings.stopShortcutModifiers
+            ) {
+                if AppState.shared.isWatching {
+                    AppState.shared.stopWatching()
+                }
+            }
         }
     }
     
