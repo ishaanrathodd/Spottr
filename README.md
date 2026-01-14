@@ -1,3 +1,6 @@
+<img width="128" height="128" alt="icon_1024-Photoroom" src="https://github.com/user-attachments/assets/5af9b4c1-13a5-4f92-9587-a92e8e33788e" />
+
+
 # Spottr
 
 A native macOS menu bar app that watches a folder for new files and copies their paths to your clipboard.
