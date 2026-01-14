@@ -24,6 +24,10 @@ class SettingsManager {
         static let stopModifierShift = "stopShortcutModifierShift"
         static let stopModifierCommand = "stopShortcutModifierCommand"
         static let stopKeyCode = "stopShortcutKeyCode"
+        
+        // Smart Paste Settings
+        static let smartPasteEnabled = "smartPasteEnabled"
+        static let allowedAppBundleIDs = "allowedAppBundleIDs"
     }
     
     // Default templates - {path} is the placeholder for file paths
@@ -135,6 +139,35 @@ class SettingsManager {
     var multipleFilesTemplate: String {
         get { defaults.string(forKey: Keys.multipleFilesTemplate) ?? SettingsManager.defaultMultipleTemplate }
         set { defaults.set(newValue, forKey: Keys.multipleFilesTemplate) }
+    }
+    
+    // MARK: - Smart Paste Settings
+    
+    var smartPasteEnabled: Bool {
+        get { defaults.bool(forKey: Keys.smartPasteEnabled) }
+        set { defaults.set(newValue, forKey: Keys.smartPasteEnabled) }
+    }
+    
+    var allowedAppBundleIDs: [String] {
+        get { defaults.stringArray(forKey: Keys.allowedAppBundleIDs) ?? [] }
+        set { defaults.set(newValue, forKey: Keys.allowedAppBundleIDs) }
+    }
+    
+    func addAllowedApp(url: URL) {
+        guard let bundle = Bundle(url: url),
+              let bundleID = bundle.bundleIdentifier else { return }
+        
+        var current = allowedAppBundleIDs
+        if !current.contains(bundleID) {
+            current.append(bundleID)
+            allowedAppBundleIDs = current
+        }
+    }
+    
+    func removeAllowedApp(id: String) {
+        var current = allowedAppBundleIDs
+        current.removeAll { $0 == id }
+        allowedAppBundleIDs = current
     }
     
     // Format the final clipboard content based on number of paths

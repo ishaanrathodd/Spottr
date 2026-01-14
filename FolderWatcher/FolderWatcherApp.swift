@@ -28,6 +28,9 @@ struct FolderWatcherApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Check and prompt for Accessibility permissions immediately
+        checkAccessibilityPermissions()
+        
         // Register global hotkeys using Carbon API
         setupHotKeys()
         
@@ -40,6 +43,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationWillTerminate(_ notification: Notification) {
         GlobalHotKey.shared.unregisterAll()
+    }
+    
+    func checkAccessibilityPermissions() {
+        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+        let accessEnabled = AXIsProcessTrustedWithOptions(options)
+        
+        if !accessEnabled {
+            print("Access not enabled. Prompting user...")
+            // Optionally show an alert explaining why, but the system prompt will appear
+        } else {
+            print("Accessibility access granted.")
+        }
     }
     
     func setupHotKeys() {

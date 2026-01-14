@@ -16,6 +16,7 @@ struct SettingsView: View {
     
     @State private var singleFileTemplate: String = ""
     @State private var multipleFilesTemplate: String = ""
+    @State private var smartPasteEnabled: Bool = false
     
     var body: some View {
         Form {
@@ -120,6 +121,23 @@ struct SettingsView: View {
             }
             
             Section {
+                Toggle("Enable Smart Paste Automation", isOn: $smartPasteEnabled)
+                    .onChange(of: smartPasteEnabled) { newValue in
+                        SettingsManager.shared.smartPasteEnabled = newValue
+                    }
+                
+                Text("Automatically paste collected paths when Cmd+V is pressed in allowed apps.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                if smartPasteEnabled {
+                    AppSelectionView()
+                }
+            } header: {
+                Text("Smart Paste Automation")
+            }
+            
+            Section {
                 Text("Spottr monitors a folder for new files and collects their paths. When you stop watching, all paths are automatically copied to your clipboard with the configured template.")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -139,6 +157,8 @@ struct SettingsView: View {
             // Load templates
             singleFileTemplate = SettingsManager.shared.singleFileTemplate
             multipleFilesTemplate = SettingsManager.shared.multipleFilesTemplate
+            // Load smart paste setting
+            smartPasteEnabled = SettingsManager.shared.smartPasteEnabled
         }
     }
     
@@ -361,4 +381,103 @@ struct ShortcutRecorderView: View {
 #Preview {
     SettingsView()
         .environmentObject(AppState.shared)
+}
+
+struct AppSelectionView: View {
+    @State private var allowedApps: [String] = []
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Allowed Apps for Smart Paste")
+                .font(.headline)
+            
+            Text("When stopped by Cmd+V in these apps, scraped paths will be pasted. In other apps, paths will be discarded.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            List {
+                ForEach(allowedApps, id: \.self) { bundleID in
+                    HStack {
+                        if let icon = getIcon(for: bundleID) {
+                            Image(nsImage: icon)
+                                .resizable()
+                                .frame(width: 24, height: 24)
+                        }
+                        VStack(alignment: .leading) {
+                            Text(getName(for: bundleID))
+                                .fontWeight(.medium)
+                            Text(bundleID)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                    }
+                }
+                .onDelete(perform: deleteApp)
+            }
+            .frame(height: 150)
+            .border(Color.gray.opacity(0.2))
+            
+            HStack {
+                Button(action: addApp) {
+                    Label("Add Application", systemImage: "plus")
+                }
+                Spacer()
+                Button("Clear All") {
+                    allowedApps.removeAll()
+                    save()
+                }
+                .disabled(allowedApps.isEmpty)
+            }
+        }
+        .onAppear {
+            allowedApps = SettingsManager.shared.allowedAppBundleIDs
+        }
+    }
+    
+    private func addApp() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.applicationBundle]
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        
+        panel.begin { response in
+            if response == .OK {
+                for url in panel.urls {
+                    SettingsManager.shared.addAllowedApp(url: url)
+                }
+                allowedApps = SettingsManager.shared.allowedAppBundleIDs
+            }
+        }
+    }
+    
+    private func deleteApp(at offsets: IndexSet) {
+        offsets.forEach { index in
+            let id = allowedApps[index]
+            SettingsManager.shared.removeAllowedApp(id: id)
+        }
+        allowedApps = SettingsManager.shared.allowedAppBundleIDs
+    }
+    
+    private func save() {
+        SettingsManager.shared.allowedAppBundleIDs = allowedApps
+    }
+    
+    private func getIcon(for bundleID: String) -> NSImage? {
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+            return NSWorkspace.shared.icon(forFile: url.path)
+        }
+        return nil
+    }
+    
+    private func getName(for bundleID: String) -> String {
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
+           let bundle = Bundle(url: url),
+           let name = bundle.infoDictionary?["CFBundleName"] as? String {
+            return name
+        }
+        return bundleID
+    }
 }

@@ -54,12 +54,29 @@ class AppState: ObservableObject {
             }
         }
         fileMonitor?.start()
+        
+        // Register paste trigger automation if enabled
+        if SettingsManager.shared.smartPasteEnabled {
+            GlobalHotKey.shared.registerPasteTrigger { [weak self] in
+                self?.handlePasteTrigger()
+            }
+        }
     }
     
-    func stopWatching() {
+    func stopWatching(discard: Bool = false) {
+        // Unregister paste trigger immediately
+        GlobalHotKey.shared.unregisterPasteTrigger()
+        
         fileMonitor?.stop()
         fileMonitor = nil
         isWatching = false
+        
+        if discard {
+            // Just clear paths and update status
+            collectedPaths = []
+            statusMessage = "Watch cancelled (Paste in unsupported app)"
+            return
+        }
         
         // Copy paths to clipboard with template formatting
         if !collectedPaths.isEmpty {
@@ -95,5 +112,51 @@ class AppState: ObservableObject {
     func removePath(at index: Int) {
         guard index < collectedPaths.count else { return }
         collectedPaths.remove(at: index)
+    }
+    
+    private func handlePasteTrigger() {
+        print("Paste trigger detected!")
+        
+        // Check if Smart Paste is enabled
+        guard SettingsManager.shared.smartPasteEnabled else {
+            // Loophole: If we registered the hotkey but it's disabled? 
+            // Better to handle this at registration time or just stop normally.
+            stopWatching()
+            return // Or simulate paste of what we just deprecated? 
+            // Actually if it's disabled, we shouldn't have registered it.
+            // But if we did, default behavior: Stop & Copy (standard behavior)
+        }
+        
+        // Get frontmost application
+        guard let frontApp = NSWorkspace.shared.frontmostApplication,
+              let bundleID = frontApp.bundleIdentifier else {
+            // Can't identify app, default to stop & copy
+            stopWatching()
+            return
+        }
+        
+        let pid = frontApp.processIdentifier
+        print("Paste in app: \(bundleID) (PID: \(pid))")
+        
+        // Ensure the target app is definitely active/focused
+        if let runningApp = NSRunningApplication(processIdentifier: pid) {
+            runningApp.activate(options: .activateIgnoringOtherApps)
+        }
+        
+        let allowedApps = SettingsManager.shared.allowedAppBundleIDs
+        
+        if allowedApps.contains(bundleID) {
+            // ALLOWED APP: Stop Watch -> Copy Paths -> Paste
+            stopWatching(discard: false)
+            
+            print("Performing Smart Paste (Allowed App)...")
+            GlobalHotKey.shared.simulatePaste(to: pid)
+        } else {
+            // UNALLOWED APP: Stop Watch -> Discard Paths -> Paste Original
+            stopWatching(discard: true)
+            
+            print("Performing Smart Paste (Unallowed App)...")
+            GlobalHotKey.shared.simulatePaste(to: pid)
+        }
     }
 }
