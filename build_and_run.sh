@@ -11,7 +11,7 @@ if [ $? -eq 0 ]; then
     # Path where Xcode builds the app (Source)
     # Note: adjusting this to match the specific DerivedData path seen in logs or use a generic find if needed. 
     # For now, aiming for the specific path since it was stable in previous logs.
-    APP_SOURCE="/Users/ishaanrathod/Library/Developer/Xcode/DerivedData/FolderWatcher-fszkihsbmhkaeoblxxbflalvuode/Build/Products/Debug/FolderWatcher.app"
+    APP_SOURCE="/Users/ishaanrathod/Library/Developer/Xcode/DerivedData/FolderWatcher-fszkihsbmhkaeoblxxbflalvuode/Build/Products/Debug/Spottr.app"
     
     # Define stable install path (Destination)
     INSTALL_PATH="$HOME/Applications/Spottr.app"
@@ -34,7 +34,7 @@ if [ $? -eq 0 ]; then
     echo "Launching from stable path..."
     open "$INSTALL_PATH"
     
-    echo "App launched! Checks Console logs for 'com.ishaanrathod.FolderWatcher'."
+    echo "App launched! Checks Console logs for 'com.ishaanrathod.Spottr'."
 else
     echo "Build failed."
     exit 1

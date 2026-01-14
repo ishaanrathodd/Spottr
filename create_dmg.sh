@@ -1,7 +1,7 @@
 #!/bin/bash
 
 APP_NAME="Spottr"
-SOURCE_APP_PATH="/Users/ishaanrathod/Library/Developer/Xcode/DerivedData/FolderWatcher-fszkihsbmhkaeoblxxbflalvuode/Build/Products/Release/FolderWatcher.app"
+SOURCE_APP_PATH="/Users/ishaanrathod/Library/Developer/Xcode/DerivedData/FolderWatcher-fszkihsbmhkaeoblxxbflalvuode/Build/Products/Release/Spottr.app"
 DMG_NAME="Spottr.dmg"
 STAGING_DIR="./dmg_staging"
 

@@ -7,7 +7,7 @@ import os.log
 import CoreGraphics
 import ApplicationServices
 
-private let logger = Logger(subsystem: "com.ishaanrathod.FolderWatcher", category: "GlobalHotKey")
+private let logger = Logger(subsystem: "com.ishaanrathod.Spottr", category: "GlobalHotKey")
 
 /// Enum to identify different hotkeys
 enum HotKeyID: UInt32 {
