@@ -8,6 +8,10 @@ This app is designed to help you quickly collect file paths. I made it for my us
 
 ## Features
 
+<img width="303" height="308" alt="image" src="https://github.com/user-attachments/assets/ec3a9c75-6d67-446c-afb7-0e61c22dca47" /> <img width="525" height="531" alt="image" src="https://github.com/user-attachments/assets/72df5354-582b-4237-8ec3-8e95e1eda09c" />
+
+
+
 - **Native macOS UI** - Built with SwiftUI for authentic macOS experience
 - **Global Keyboard Shortcut** - Toggle watching from anywhere (default: ⌃⇧W)
 - **Folder Watching** - Monitor any folder for new files using FSEvents
