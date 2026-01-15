@@ -113,6 +113,12 @@ class AppState: ObservableObject {
         guard index < collectedPaths.count else { return }
         collectedPaths.remove(at: index)
     }
+
+    func removePaths(at indexes: IndexSet) {
+        let validIndexes = indexes.filter { $0 < collectedPaths.count }
+        guard !validIndexes.isEmpty else { return }
+        collectedPaths.remove(atOffsets: IndexSet(validIndexes))
+    }
     
     private func handlePasteTrigger() {
         print("Paste trigger detected!")

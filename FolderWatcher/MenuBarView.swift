@@ -1,8 +1,11 @@
 import SwiftUI
+import AppKit
 
 struct MenuBarView: View {
     @EnvironmentObject var appState: AppState
     @State private var isHovering = false
+    @State private var selectedIndexes = IndexSet()
+    @State private var windowObserver: NSObjectProtocol?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -100,43 +103,25 @@ struct MenuBarView: View {
                         
                         Button("Clear") {
                             appState.clearPaths()
+                            selectedIndexes = IndexSet()
                         }
                         .buttonStyle(.plain)
                         .font(.caption)
                         .foregroundColor(.accentColor)
                     }
+                    .padding(.horizontal)
+                    .padding(.top)
                     
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 4) {
-                            ForEach(Array(appState.collectedPaths.enumerated()), id: \.offset) { index, path in
-                                HStack {
-                                    Image(systemName: "doc")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    
-                                    Text(URL(fileURLWithPath: path).lastPathComponent)
-                                        .font(.caption)
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
-                                    
-                                    Spacer()
-                                    
-                                    Button(action: {
-                                        appState.removePath(at: index)
-                                    }) {
-                                        Image(systemName: "xmark")
-                                            .font(.caption2)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .foregroundColor(.secondary)
-                                }
-                                .padding(.vertical, 2)
-                            }
+                    FileListTableView(filePaths: $appState.collectedPaths, selectedIndexes: $selectedIndexes, onMenuAppear: {
+                        // When menu appears, select all files
+                        if !appState.collectedPaths.isEmpty {
+                            selectedIndexes = IndexSet(integersIn: 0..<appState.collectedPaths.count)
                         }
-                    }
-                    .frame(maxHeight: 120)
+                    })
+                        .frame(minHeight: 120, maxHeight: 160)
+                        .padding(.horizontal, 4)
+                        .padding(.bottom)
                 }
-                .padding()
             }
             
             Divider()
@@ -150,8 +135,6 @@ struct MenuBarView: View {
                 Spacer()
                 
                 Button(action: {
-                    // Add a slight delay to allow the menu interaction to complete
-                    // effectively simulating a fresh activation like the hotkey
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                          SettingsWindowController.shared.openSettings()
                     }
@@ -173,6 +156,28 @@ struct MenuBarView: View {
             .background(Color(NSColor.controlBackgroundColor))
         }
         .frame(width: 300)
+        .onAppear {
+            // When menu first appears, select all files
+            if !appState.collectedPaths.isEmpty {
+                selectedIndexes = IndexSet(integersIn: 0..<appState.collectedPaths.count)
+            }
+            
+            // Set up observer for when window becomes key (menu opens)
+            windowObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didBecomeKeyNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                if !appState.collectedPaths.isEmpty {
+                    selectedIndexes = IndexSet(integersIn: 0..<appState.collectedPaths.count)
+                }
+            }
+        }
+        .onDisappear {
+            if let observer = windowObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+        }
     }
     
     private func shortPath(_ path: String) -> String {

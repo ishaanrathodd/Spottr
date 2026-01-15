@@ -16,6 +16,7 @@
 		42DBAEC92F17704B00FE1B3E /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DBAEBE2F17704B00FE1B3E /* SettingsManager.swift */; };
 		42DBAECA2F17704B00FE1B3E /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DBAEB62F17704B00FE1B3E /* AppState.swift */; };
 		42DBAECB2F17704B00FE1B3E /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DBAEBD2F17704B00FE1B3E /* MenuBarView.swift */; };
+		42DBAECF2F17704B00FE1B3E /* FileListTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DBAECE2F17704B00FE1B3E /* FileListTableView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -258,6 +259,7 @@
 		42DBAEBB2F17704B00FE1B3E /* GlobalHotKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotKey.swift; sourceTree = "<group>"; };
 		42DBAEBC2F17704B00FE1B3E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		42DBAEBD2F17704B00FE1B3E /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
+		42DBAECE2F17704B00FE1B3E /* FileListTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileListTableView.swift; sourceTree = "<group>"; };
 		42DBAEBE2F17704B00FE1B3E /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		42DBAEBF2F17704B00FE1B3E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		42DBAEC02F17704B00FE1B3E /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
@@ -840,6 +842,7 @@
 				42DBAEBB2F17704B00FE1B3E /* GlobalHotKey.swift */,
 				42DBAEBC2F17704B00FE1B3E /* Info.plist */,
 				42DBAEBD2F17704B00FE1B3E /* MenuBarView.swift */,
+				42DBAECE2F17704B00FE1B3E /* FileListTableView.swift */,
 				42DBAEBE2F17704B00FE1B3E /* SettingsManager.swift */,
 				42DBAEBF2F17704B00FE1B3E /* SettingsView.swift */,
 				42DBAEC02F17704B00FE1B3E /* SettingsWindowController.swift */,
@@ -948,6 +951,7 @@
 				42DBAEC92F17704B00FE1B3E /* SettingsManager.swift in Sources */,
 				42DBAECA2F17704B00FE1B3E /* AppState.swift in Sources */,
 				42DBAECB2F17704B00FE1B3E /* MenuBarView.swift in Sources */,
+				42DBAECF2F17704B00FE1B3E /* FileListTableView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
